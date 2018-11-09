@@ -1,0 +1,190 @@
+<!doctype html>
+
+<body>
+    <canvas id="gameCanvas" width="400" height="600"></canvas> <!-- Sets up the canvas size and gives it an id, this is then called back in the window.onload function where the canvas is loaded in-->
+</body>
+
+<script src="ship.js"></script>
+<!--Links the other js files for the bullet, ship and enemies-->
+<script src="bullet.js"></script>
+<script src="enemy.js"></script>
+
+<script>
+    var canvas, cavnasContext;
+
+    window.onload = function() {
+        canvas = document.getElementById('gameCanvas'); /*Loads in the canvas and sets it to 2d, the id of the canvas has been defined above in the html section of code as 'gameCanvas'*/
+        canvasContext = canvas.getContext('2d');
+
+        document.addEventListener('keydown', keyPressed); /*document.addEventListener adds an event to the game, in this case detecting when keys are released or pressed*/
+        document.addEventListener('keyup', keyReleased);
+
+        setInterval(mainloop, 1000 / 50); /*Sets the frame rate of the game*/
+    } // end of window.onload function
+
+    var gameRun = true;
+
+    var shipXpos = 160; //The variablles and constants needed for the ships movement, size, start position and appearace
+    var shipYpos = 500;
+    var shipXspeed = 7;
+    var shipYspeed = 7;
+    var shipColor = 'white';
+    const SHIP_WIDTH = 60;
+    const SHIP_HEIGHT = 70;
+
+    const LEFT_KEY = 65;
+    const RIGHT_KEY = 68;
+    const UP_KEY = 87;
+    const DOWN_KEY = 83;
+    const SPACE_KEY = 32;
+
+    var healthWidth = 100; //The var and const needed for the health bar, sets its width and height
+    const HEALTH_HEIGHT = 10;
+
+
+    var leftKeyPressed = false; //These are boolean vars used for the movement of the ship and firing of the bullets when keys are pushed
+    var rightKeyPressed = false;
+    var upKeyPressed = false;
+    var downKeyPressed = false;
+    var spaceKeyPressed = false;
+
+    var enemies = []; //Sets up the array for the enemies, the number of enemies being made and makes setUp true, this then runs the settingUp function before turning setUp back to false
+    var enemyTotal = 8;
+    var setUp = true;
+
+    var bullets = []; //Sets up the bullets array
+
+    var difficulty = ''; //Will store the difficulty which the user inputs
+
+    var playerImg = new Image(); //Links to the image which is used for the players appearance, this var is used when setting up the player
+    playerImg.src = 'images/ship.png';
+
+    var enemyImg = new Image(); //Links to the image which is used for the enemies appearance, this var is used when setting up the enemies
+    enemyImg.src = 'images/enemy.png';
+
+    var player = new Ship(playerImg, shipXpos, shipYpos, SHIP_WIDTH, SHIP_HEIGHT, shipColor, shipXspeed, shipYspeed); //Makes the players ship, lists var's and consts already defined above, PlayerImg also makes the ship display the image which has been linked above
+
+
+    function mainloop() { //The mainloop constantly runs at the interval which has been set under window.onload
+
+        if (gameRun) {
+            colorRect(0, 0, canvas.width, canvas.height, 'black');  //Sets the background colour to the size of the canvas as defined above
+            
+            colorRect(canvas.width - healthWidth - 10, 10, healthWidth, HEALTH_HEIGHT, 'red'); // sets up the colorRect for the healthbar
+            colorText(healthWidth, 20, 20, 'red', '20px Arial'); //Displays the health remaining as text on screen
+            
+            if (setUp) { //Setup is set to true when the game runs, then asks the user to input the difficulty
+
+                while (difficulty != 'easy' && difficulty != 'hard') { //If the difficulty is not equal to 'easy' or 'hard' then the game will continue to prompt the user to input a difficulty, to avoid bugs the characters are set to lowercase
+                    difficulty = prompt('To win, Destroy all the asteroids to protect the planet, the two difficutly settings are either easy or hard', 'easy') || '';
+                    difficulty = difficulty.toLowerCase();
+                }
+
+                settingUp(); //the settingUp function is run before setting setUp back to false
+                setUp = false;
+            } // end of setUp
+
+            if (enemies.length > 0) { //Uses the enemy.js file to draw in the enemy and start the enemy movement
+                enemies.forEach(function(enemy, index) {
+                    enemy.drawEnemyImg();
+                    enemy.enemyMove();
+                });
+            } // end of enemies.length if statement
+
+            if (bullets.length > 0) { //Uses the bullets.js file to draw in the bullets and make the bullets move
+                bullets.forEach(function(bullet, index) {
+                    bullet.drawBullet();
+                    bullet.bulletMove();
+
+                    if (bullet.outOfBounds() || bullet.hasCollided()) { //Deletes the bullets once it has either gone out of bounds or has collided with an enemy
+                        delete bullets[index];
+                    }
+                });
+                bullets = bullets.filter(item => item !== undefined) //Once the object has been deleted in the array it clears the undefined place holder in the array
+            } // end of bullet.length if statement
+            
+            if(enemies.length < 1){ //Will set gameRun to false once the enemies have been eleminated
+                gameRun = false;
+            }
+
+            player.drawShipImg(); //Used so that the ship can constantly move and detect when it has collided with enemies, also draws in the ships image
+            player.shipMovement();
+            player.hasCollided();
+
+        } // End of gameRun
+        
+        else {
+                colorRect(0, 0, canvas.width, canvas.height, 'black'); //Will black out the screen when the gameRun is set to false
+            
+            if (enemies.length < 1){ //Gives a winning message to the player and tells them how much health they had remaining when the enemies are eliminated
+                colorText('You win, you had ' + healthWidth + ' health remaining', 20, 20, 'white', '20px Arial');
+            } 
+            
+        
+        else {
+                colorText('You lose, press restart game', 20, 20, 'white', '20px Arial'); //Gives a losing message to the user when they either get hit by the asteroids, or their health runs out
+            }
+        }
+
+    } //End of mainloop function
+
+    function keyPressed(evt) { //Checks for when the user has pressed certain keys, sets the corrosponding variable to true
+        if (evt.keyCode == LEFT_KEY) {
+            leftKeyPressed = true;
+        }
+        if (evt.keyCode == RIGHT_KEY) {
+            rightKeyPressed = true;
+        }
+        if (evt.keyCode == UP_KEY) {
+            upKeyPressed = true;
+        }
+        if (evt.keyCode == DOWN_KEY) {
+            downKeyPressed = true;
+        }
+        if (evt.keyCode == SPACE_KEY) {
+            spaceKeyPressed = true;
+        }
+    } // end of keyPressed function
+
+    function keyReleased(evt) { //Checks for when the user has released certain keys, sets the corrosponding variable to false
+        if (evt.keyCode == LEFT_KEY) {
+            leftKeyPressed = false;
+        }
+        if (evt.keyCode == RIGHT_KEY) {
+            rightKeyPressed = false;
+        }
+        if (evt.keyCode == UP_KEY) {
+            upKeyPressed = false;
+        }
+        if (evt.keyCode == DOWN_KEY) {
+            downKeyPressed = false;
+        }
+        if (evt.keyCode == SPACE_KEY) { //As well as setting the spaceKeyPressed var to false it runs the makeBullet function
+            spaceKeyPressed = false;
+            makeBullet();
+        } // end of keyReleased function
+    }
+
+
+    function colorRect(x, y, w, h, c) { //sets up the colorRect function so that they are able to be drawn in, such as the canvas background and for the loss and win screens
+        canvasContext.fillStyle = c;
+        canvasContext.fillRect(x, y, w, h);
+    } // end of ColorRect funtion
+    
+     function colorText(msg, x, y, c, f) { //Sets up for the colorText function so that text can be used for the health, win screen and loss screen
+        canvasContext.fillStyle = c;
+        canvasContext.fillText(msg, x, y);
+        canvasContext.font = f;
+    } // End of ColorText function
+
+
+    function settingUp() { //Ran once the game is started to add enemies into the game, goes until the amount of enemies matches the enemyTotal function
+        for (i = 0; i < enemyTotal; i++) {
+            makeEnemy();
+        }
+    } // End of settingUp function
+
+</script>
+
+<input type="button" value="Restart Game" onClick="window.location.reload()">
+<!--Makes an hmtl button which reloads the page when pushed, thus restarting the game-->
